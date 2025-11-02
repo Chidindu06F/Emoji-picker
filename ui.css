@@ -1,0 +1,99 @@
+:root {
+  --bg: #0f0f10;
+  --surface: #18181a;
+  --surface-2: #1f1f22;
+  --text: #ffffff;
+  --muted: #bdbdbd;
+  --border: #2a2a2e;
+  --border-strong: #3a3a3f;
+  --accent: #2b2b31;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.search-wrapper {
+  padding: 14px 14px 10px 14px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-input {
+  width: 100%;
+  height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+  box-shadow: var(--shadow);
+}
+
+.search-input::placeholder { color: var(--muted); }
+.search-input:focus {
+  border-color: var(--border-strong);
+}
+
+.emoji-grid {
+  display: grid;
+  /* Render in 8 rows of 60px; columns auto-expand for a modern, balanced grid */
+  grid-template-rows: repeat(8px);
+  grid-auto-flow: column;
+  grid-auto-columns: 60px;
+  gap: 12px;
+  padding: 14px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.emoji-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  width: 60px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  font-size: 36px;
+  user-select: none;
+  will-change: transform;
+}
+
+.emoji-btn:hover {
+  transform: scale(1.06);
+  border-color: var(--border-strong);
+  background: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.emoji-btn:active {
+  transform: scale(0.98);
+}
+
+.emoji-btn:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset, var(--shadow);
+}
+

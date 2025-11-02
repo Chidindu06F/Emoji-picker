@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Emoji Picker</title>
+    <style>
+      :root {
+        --bg: #0f0f10;
+        --surface: #18181a;
+        --surface-2: #1f1f22;
+        --text: #ffffff;
+        --muted: #bdbdbd;
+        --border: #2a2a2e;
+        --border-strong: #3a3a3f;
+        --accent: #2b2b31;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI,
+          Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji,
+          Noto Color Emoji, sans-serif;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .search-wrapper {
+        padding: 14px 14px 10px 14px;
+        background: var(--bg);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        border-bottom: 1px solid var(--border);
+      }
+      .search-input {
+        width: 100%;
+        height: 44px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        outline: none;
+        box-shadow: var(--shadow);
+      }
+      .search-input::placeholder {
+        color: var(--muted);
+      }
+      .search-input:focus {
+        border-color: var(--border-strong);
+      }
+      .emoji-grid {
+        display: grid;
+        /* 5 fixed columns, rows grow as needed */
+        grid-template-columns: repeat(5, 60px);
+        grid-auto-rows: 60px;
+        grid-auto-flow: row;
+        gap: 12px;
+        padding: 14px;
+      }
+      .emoji-grid::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .scroll-area {
+        position: relative;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        margin-bottom: 48px; /* Space for sticky footer */
+      }
+      .scroll-area::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .recents-wrap {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        backdrop-filter: blur(8px);
+        background: rgba(24, 24, 26, 0.6);
+        border-bottom: 1px solid var(--border);
+      }
+      .recent-title {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 14px 0 14px;
+      }
+      .recents {
+        padding: 4px 14px;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 36px;
+        gap: 8px;
+        min-height: 36px;
+      }
+      .emoji-recent {
+        height: 36px;
+        width: 36px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 22px;
+      }
+      .emoji-recent:hover {
+        border-color: var(--border-strong);
+        background: var(--accent);
+      }
+      .scroll-btn {
+        position: fixed;
+        right: 14px;
+        height: 36px;
+        width: 36px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+      .scroll-btn:hover {
+        background: var(--accent);
+        border-color: var(--border-strong);
+      }
+      .scroll-btn.down {
+        bottom: 54px; /* 40px above footer (footer height + margin) */
+      }
+      .scroll-btn.up {
+        bottom: 96px; /* 42px above down button */
+      }
+      .emoji-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 60px;
+        width: 60px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        transition: transform 140ms ease, border-color 140ms ease,
+          background 140ms ease, box-shadow 140ms ease;
+        font-size: 36px;
+        line-height: 1;
+        user-select: none;
+        will-change: transform;
+        font-family: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji",
+          "Twemoji Mozilla", "EmojiOne Color", "Segoe UI Symbol", Inter,
+          ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+      .emoji-btn:hover {
+        transform: scale(1.06);
+        border-color: var(--border-strong);
+        background: var(--accent);
+        box-shadow: var(--shadow);
+      }
+      .emoji-btn:active {
+        transform: scale(0.98);
+      }
+      .emoji-btn:focus-visible {
+        outline: none;
+        border-color: var(--border-strong);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) inset, var(--shadow);
+      }
+      .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100vw;
+        background-color: #0f0f10;
+        color: var(--muted);
+        text-align: center;
+        font-size: 12px;
+        padding: 10px 0 8px 0;
+        z-index: 100;
+        box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.12);
+        letter-spacing: 0.01em;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="search-wrapper">
+        <input
+          id="search"
+          class="search-input"
+          type="text"
+          placeholder="Search emojis..."
+          autocomplete="off"
+        />
+      </div>
+      <div
+        class="tip"
+        style="
+          padding: 8px 14px 0 14px;
+          color: var(--muted);
+          font-size: 13px;
+          margin-bottom: 12px;
+        "
+      >
+        Tip: To resize an emoji, select it and adjust the font size
+      </div>
+      <div class="scroll-area" id="scrollArea">
+        <div class="recents-wrap">
+          <div class="recent-title" id="recentTitle">Recently used</div>
+          <div id="recents" class="recents"></div>
+        </div>
+        <div id="grid" class="emoji-grid" aria-live="polite"></div>
+      </div>
+      <button id="btnDown" class="scroll-btn down" title="Scroll to bottom">
+        ↓
+      </button>
+      <button id="btnUp" class="scroll-btn up" title="Scroll to top">↑</button>
+    </div>
+    <footer class="footer">Designed and built by Dindu💗</footer>
+
+    <script>
+      // Utility: debounce
+      function debounce(fn, delay) {
+        let t = null;
+        return function (...args) {
+          clearTimeout(t);
+          t = setTimeout(() => fn.apply(this, args), delay);
+        };
+      }
+
+      // Partial CLDR short names map for emojis in U+1F600..U+1FAFF
+      const CLDR_SHORT_NAMES = {
+        "😀": "grinning face",
+        "😃": "grinning face with big eyes",
+        "😄": "grinning face with smiling eyes",
+        "😁": "beaming face with smiling eyes",
+        "😆": "grinning squinting face",
+        "😅": "grinning face with sweat",
+        "🤣": "rolling on the floor laughing",
+        "😂": "face with tears of joy",
+        "🙂": "slightly smiling face",
+        "🙃": "upside-down face",
+        "😉": "winking face",
+        "😊": "smiling face with smiling eyes",
+        "😇": "smiling face with halo",
+        "🥹": "face holding back tears",
+        "😍": "smiling face with heart-eyes",
+        "🥰": "smiling face with hearts",
+        "😘": "face blowing a kiss",
+        "😗": "kissing face",
+        "☺️": "smiling face",
+        "😚": "kissing face with closed eyes",
+        "😙": "kissing face with smiling eyes",
+        "😋": "face savoring food",
+        "😛": "face with tongue",
+        "😜": "winking face with tongue",
+        "🤪": "zany face",
+        "😝": "squinting face with tongue",
+        "🤑": "money-mouth face",
+        "🤗": "hugging face",
+        "🤭": "face with hand over mouth",
+        "🫢": "face with open eyes and hand over mouth",
+        "🫣": "face with peeking eye",
+        "🤫": "shushing face",
+        "🤔": "thinking face",
+        "🫠": "melting face",
+        "🤐": "zipper-mouth face",
+        "🤨": "face with raised eyebrow",
+        "😐": "neutral face",
+        "😑": "expressionless face",
+        "😶": "face without mouth",
+        "🫥": "dotted line face",
+        "😶‍🌫️": "face in clouds",
+        "😏": "smirking face",
+        "😒": "unamused face",
+        "🙄": "face with rolling eyes",
+        "😬": "grimacing face",
+        "😮‍💨": "face exhaling",
+        "🤥": "lying face",
+        "😌": "relieved face",
+        "😔": "pensive face",
+        "😪": "sleepy face",
+        "🤤": "drooling face",
+        "😴": "sleeping face",
+        "😷": "face with medical mask",
+        "🤒": "face with thermometer",
+        "🤕": "face with head-bandage",
+        "🤢": "nauseated face",
+        "🤮": "face vomiting",
+        "🤧": "sneezing face",
+        "😵": "dizzy face",
+        "😵‍💫": "face with spiral eyes",
+        "🥴": "woozy face",
+        "😎": "smiling face with sunglasses",
+        "🤓": "nerd face",
+        "🧐": "face with monocle",
+        "😕": "confused face",
+        "🫤": "face with diagonal mouth",
+        "😟": "worried face",
+        "🙁": "slightly frowning face",
+        "☹️": "frowning face",
+        "😮": "face with open mouth",
+        "😯": "hushed face",
+        "😲": "astonished face",
+        "😳": "flushed face",
+        "🥵": "hot face",
+        "🥶": "cold face",
+        "😱": "face screaming in fear",
+        "😨": "fearful face",
+        "😰": "anxious face with sweat",
+        "😥": "sad but relieved face",
+        "😓": "downcast face with sweat",
+        "🤯": "exploding head",
+        "😤": "face with steam from nose",
+        "😭": "loudly crying face",
+        "😢": "crying face",
+        "😩": "weary face",
+        "😫": "tired face",
+        "😖": "confounded face",
+        "😣": "persevering face",
+        "😠": "angry face",
+        "😡": "enraged face",
+        "🤬": "face with symbols on mouth",
+        "😺": "grinning cat",
+        "😸": "grinning cat with smiling eyes",
+        "😹": "cat with tears of joy",
+        "😻": "smiling cat with heart-eyes",
+        "😼": "cat with wry smile",
+        "😽": "kissing cat",
+        "🙀": "weary cat",
+        "😿": "crying cat",
+        "😾": "pouting cat",
+      };
+
+      // Build a large emoji set programmatically using Unicode ranges, filtered by the Emoji property
+      // This yields well over 1,000 emojis on most systems without external files
+      function generateEmojiSet() {
+        // Simplified sequential set from U+1F600..U+1FAFF (inclusive)
+        const start = 0x1f600;
+        const end = 0x1faff;
+        const isEmojiSeq = (ch) => /\p{Extended_Pictographic}/u.test(ch);
+        const seq = [];
+        for (let cp = start; cp <= end; cp++) {
+          const ch = String.fromCodePoint(cp);
+          if (isEmojiSeq(ch)) {
+            seq.push({
+              emoji: ch,
+              name: CLDR_SHORT_NAMES[ch] || undefined,
+              cp,
+              keywords: [ch, "U+" + cp.toString(16).toUpperCase()],
+            });
+          }
+        }
+        return seq;
+        // Legacy below (unreachable)
+        const ranges = [
+          [0x1f300, 0x1f5ff], // Misc Symbols & Pictographs
+          [0x1f600, 0x1f64f], // Emoticons
+          [0x1f680, 0x1f6ff], // Transport & Map
+          [0x1f700, 0x1f77f], // Alchemical
+          [0x1f780, 0x1f7ff], // Geometric Extended
+          [0x1f800, 0x1f8ff], // Supplemental Arrows-C
+          [0x1f900, 0x1f9ff], // Supplemental Symbols and Pictographs
+          [0x1fa00, 0x1faff], // Symbols and Pictographs Extended-A
+          [0x2600, 0x26ff], // Misc symbols
+          [0x2700, 0x27bf], // Dingbats
+        ];
+        const isEmoji = (ch) => /\p{Extended_Pictographic}/u.test(ch);
+        const list = [];
+        for (const [start, end] of ranges) {
+          for (let cp = start; cp <= end; cp++) {
+            const ch = String.fromCodePoint(cp);
+            if (isEmoji(ch)) {
+              list.push({
+                emoji: ch,
+                name: undefined,
+                cp,
+                keywords: [ch, "U+" + cp.toString(16).toUpperCase()],
+              });
+            }
+          }
+        }
+        // Add commonly used sequences that are outside single code points
+        const extraCommon = [
+          "❤\uFE0F",
+          "✨",
+          "🔥",
+          "⚡\uFE0F",
+          "⭐\uFE0F",
+          "⭕\uFE0F",
+          "✅",
+          "❌",
+          "❗\uFE0F",
+          "❓\uFE0F",
+          "☀\uFE0F",
+          "🌙",
+          "🌟",
+          "🎉",
+          "🎊",
+          "👍",
+          "👎",
+          "🙏",
+          "👏",
+          "💪",
+          "💯",
+          "🥇",
+          "🥈",
+          "🥉",
+          "🚀",
+          "🧠",
+          "🛠\uFE0F",
+          "🧰",
+          "🧪",
+          "🧩",
+          "📌",
+          "📍",
+          "🔍",
+          "🔎",
+          "🖤",
+          "💜",
+          "💙",
+          "💚",
+          "💛",
+          "🧡",
+          "🩷",
+          "💗",
+          "💖",
+          "💘",
+          "💝",
+          "💟",
+          "💔",
+        ];
+        const extraCommonObjs = extraCommon.map((e) => ({
+          emoji: e,
+          name: undefined,
+          keywords: [
+            e,
+            "heart",
+            "star",
+            "sparkle",
+            "fire",
+            "rocket",
+            "check",
+            "cross",
+            "alert",
+            "question",
+            "love",
+          ],
+        }));
+
+        // Explicitly include face smiling and face affection emojis
+        const extraFaces = [
+          // Face Smiling
+          { e: "😀", k: ["face smiling", "smile", "grinning"] },
+          { e: "😃", k: ["face smiling", "smile", "grinning", "big eyes"] },
+          { e: "😄", k: ["face smiling", "smile", "smiling eyes"] },
+          { e: "😁", k: ["face smiling", "beaming", "smile"] },
+          { e: "😆", k: ["face smiling", "laugh", "grinning squinting"] },
+          { e: "😅", k: ["face smiling", "smile", "sweat"] },
+          { e: "😂", k: ["face smiling", "joy", "tears of joy", "laugh"] },
+          {
+            e: "🤣",
+            k: ["face smiling", "rofl", "rolling on the floor laughing"],
+          },
+          { e: "☺\uFE0F", k: ["face smiling", "smiling face"] },
+          { e: "🙂", k: ["face smiling", "slightly smiling"] },
+          { e: "😊", k: ["face smiling", "smiling face with smiling eyes"] },
+          // Face Affection
+          {
+            e: "🥰",
+            k: ["face affection", "smiling face with hearts", "love"],
+          },
+          { e: "😍", k: ["face affection", "heart eyes", "love"] },
+          { e: "😘", k: ["face affection", "face blowing a kiss", "kiss"] },
+          { e: "😗", k: ["face affection", "kissing face", "kiss"] },
+          {
+            e: "😙",
+            k: ["face affection", "kissing face with smiling eyes", "kiss"],
+          },
+          {
+            e: "😚",
+            k: ["face affection", "kissing face with closed eyes", "kiss"],
+          },
+        ];
+        const extraFaceObjs = extraFaces.map((f) => ({
+          emoji: f.e,
+          name: f.k[0],
+          keywords: [f.e, ...f.k],
+        }));
+
+        // Curated sets: core faces, unhappy/sad faces, monkeys, cats, babies
+        const faceCore = [
+          ["😉", "winking face", ["wink", "face", "winking"]],
+          ["😋", "face savoring food", ["yum", "savoring", "delicious"]],
+          ["😜", "winking face with tongue", ["tongue", "wink", "playful"]],
+          ["😝", "squinting face with tongue", ["tongue", "squint", "playful"]],
+          ["😛", "face with tongue", ["tongue", "face"]],
+          ["🤪", "zany face", ["crazy", "zany", "goofy"]],
+          ["🤨", "face with raised eyebrow", ["raised eyebrow", "skeptical"]],
+          ["🧐", "face with monocle", ["monocle", "inspect", "fancy"]],
+          ["🤓", "nerd face", ["nerd", "glasses"]],
+          ["😎", "smiling face with sunglasses", ["cool", "sunglasses"]],
+          ["🥸", "disguised face", ["disguise", "glasses", "mustache"]],
+          ["🤩", "star-struck", ["star", "amazed"]],
+          ["🤠", "cowboy hat face", ["cowboy", "hat"]],
+          ["😏", "smirking face", ["smirk", "sarcasm"]],
+          ["🙃", "upside-down face", ["upside down"]],
+          ["🥲", "smiling face with tear", ["tear", "bittersweet"]],
+          ["😇", "smiling face with halo", ["halo", "angel"]],
+          ["😌", "relieved face", ["relieved", "calm"]],
+          ["🫠", "melting face", ["melting"]],
+          ["🤤", "drooling face", ["drool", "hungry"]],
+          ["😪", "sleepy face", ["sleepy", "snooze"]],
+          ["😴", "sleeping face", ["sleep", "zzz"]],
+          ["😷", "face with medical mask", ["mask", "sick"]],
+          ["🤯", "exploding head", ["mind blown", "explosion"]],
+          ["🤐", "zipper-mouth face", ["zipper", "secret"]],
+          ["🤥", "lying face", ["pinocchio", "lying"]],
+          ["🤫", "shushing face", ["quiet", "shh"]],
+          ["🤭", "face with hand over mouth", ["oops", "gasp"]],
+          ["🫡", "saluting face", ["salute"]],
+          [
+            "🫢",
+            "face with open eyes and hand over mouth",
+            ["surprised", "gasp"],
+          ],
+          ["🫣", "face with peeking eye", ["peek", "shy"]],
+          ["🤗", "hugging face", ["hug", "open hands"]],
+          ["🤔", "thinking face", ["think", "hmm"]],
+          ["😶", "face without mouth", ["mute", "no mouth"]],
+          ["🫥", "dotted line face", ["invisible", "dotted"]],
+          ["😮", "face with open mouth", ["surprised", "open mouth"]],
+          ["😯", "hushed face", ["hushed", "surprised"]],
+          ["😲", "astonished face", ["astonished", "amazed"]],
+          ["🥱", "yawning face", ["yawn", "tired"]],
+          ["🙄", "face with rolling eyes", ["eyeroll", "annoyed"]],
+          [
+            "🥹",
+            "face holding back tears",
+            ["tears", "holding back", "emotional"],
+          ],
+          ["🥺", "pleading face", ["please", "puppy eyes"]],
+        ];
+        const faceUnhappy = [
+          ["🙁", "slightly frowning face", ["unhappy", "frown", "slightly"]],
+          ["☹\uFE0F", "frowning face", ["unhappy", "frown"]],
+          ["😞", "disappointed face", ["sad", "disappointed"]],
+          ["😟", "worried face", ["worried", "concerned"]],
+          ["😠", "angry face", ["angry", "mad"]],
+          ["😡", "enraged face", ["pouting", "angry", "mad"]],
+          [
+            "🤬",
+            "face with symbols on mouth",
+            ["swearing", "cussing", "angry"],
+          ],
+          ["😣", "persevering face", ["persevere", "struggle"]],
+          ["😖", "confounded face", ["confounded", "frustrated"]],
+          ["😫", "tired face", ["tired", "exhausted"]],
+          ["😩", "weary face", ["weary", "exhausted"]],
+          ["😢", "crying face", ["sad", "crying"]],
+          ["😭", "loudly crying face", ["crying", "sobbing"]],
+          ["😤", "face with steam from nose", ["triumph", "annoyed"]],
+          ["😮\u200D\uD83D\uDCA8", "face exhaling", ["exhale", "sigh"]],
+          ["😰", "anxious face with sweat", ["anxious", "sweat"]],
+          ["😥", "sad but relieved face", ["relieved", "sad"]],
+          ["😓", "downcast face with sweat", ["sweat", "downcast"]],
+          ["😨", "fearful face", ["fearful", "scared"]],
+          ["😱", "face screaming in fear", ["scream", "fear"]],
+          ["😳", "flushed face", ["flushed", "embarrassed"]],
+          ["🥵", "hot face", ["hot", "overheated"]],
+          ["🥶", "cold face", ["cold", "freezing"]],
+          ["😶\u200D\uD83C\uDF2B\uFE0F", "face in clouds", ["foggy", "clouds"]],
+          ["😵", "dizzy face", ["dizzy", "x eyes"]],
+          [
+            "😵\u200D\uD83D\uDD2F",
+            "face with spiral eyes",
+            ["spiral eyes", "dizzy"],
+          ],
+          ["🤒", "face with thermometer", ["thermometer", "sick"]],
+          ["🤕", "face with head-bandage", ["bandage", "injury"]],
+          ["🤢", "nauseated face", ["nausea", "sick"]],
+          ["🤮", "face vomiting", ["vomit", "sick"]],
+          ["🤧", "sneezing face", ["sneeze", "sick"]],
+          ["🥴", "woozy face", ["woozy", "tipsy"]],
+          ["😔", "pensive face", ["pensive", "sad"]],
+          ["😕", "confused face", ["confused", "unsure"]],
+          ["🫤", "face with diagonal mouth", ["diagonal mouth", "uncertain"]],
+          ["😬", "grimacing face", ["grimace", "awkward"]],
+          ["😐", "neutral face", ["neutral", "meh"]],
+          ["😑", "expressionless face", ["expressionless", "blank"]],
+          ["😒", "unamused face", ["unamused", "annoyed"]],
+        ];
+        const faceMonkeys = [
+          ["🙈", "see-no-evil monkey", ["monkey", "see-no-evil"]],
+          ["🙉", "hear-no-evil monkey", ["monkey", "hear-no-evil"]],
+          ["🙊", "speak-no-evil monkey", ["monkey", "speak-no-evil"]],
+          ["🐵", "monkey face", ["monkey", "face"]],
+        ];
+        const faceCats = [
+          ["🐱", "cat face", ["cat", "face"]],
+          ["😺", "grinning cat", ["cat", "grin"]],
+          ["😸", "grinning cat with smiling eyes", ["cat", "smiling eyes"]],
+          ["😹", "cat with tears of joy", ["cat", "joy"]],
+          ["😻", "smiling cat with heart-eyes", ["cat", "love"]],
+          ["😼", "cat with wry smile", ["cat", "wry"]],
+          ["😽", "kissing cat", ["cat", "kiss"]],
+          ["🙀", "weary cat", ["cat", "weary"]],
+          ["😿", "crying cat", ["cat", "crying"]],
+          ["😾", "pouting cat", ["cat", "pout"]],
+        ];
+        const faceBabies = [["👶", "baby", ["baby", "child"]]];
+        function toObjs(arr) {
+          return arr.map(([e, name, k]) => ({
+            emoji: e,
+            name,
+            keywords: [e, name, ...(k || [])],
+          }));
+        }
+        const curated = [
+          ...toObjs(faceBabies),
+          ...toObjs(faceMonkeys),
+          ...toObjs(faceCats),
+          ...toObjs(faceUnhappy),
+          ...toObjs(faceCore),
+        ];
+        // Ensure ALL face emojis are at the top (curated → explicit faces → generated faces),
+        // followed by common extras, then the rest.
+        const FACE_EXTRA_CP = new Set([0x2639, 0x263a]); // ☹️, ☺️
+        function isGeneratedFace(item) {
+          const cpVal = item.cp;
+          if (typeof cpVal === "number") {
+            if (cpVal >= 0x1f600 && cpVal <= 0x1f64f) return true; // Emoticons block
+            if (FACE_EXTRA_CP.has(cpVal)) return true;
+          }
+          return false;
+        }
+
+        const seen = new Set();
+        const result = [];
+        const pushUnique = (it) => {
+          if (!seen.has(it.emoji)) {
+            seen.add(it.emoji);
+            result.push(it);
+          }
+        };
+
+        for (const it of curated) pushUnique(withTitle(it));
+        for (const it of extraFaceObjs) pushUnique(withTitle(it));
+        for (const it of list) {
+          if (isGeneratedFace(it)) pushUnique(withTitle(it));
+        }
+        for (const it of extraCommonObjs) pushUnique(withTitle(it));
+        for (const it of list) {
+          if (!seen.has(it.emoji)) pushUnique(withTitle(it));
+        }
+
+        return result;
+
+        function withTitle(obj) {
+          if (obj.name) return obj;
+          // Derive a readable fallback name from keywords or codepoints
+          const fromKw = (obj.keywords || []).find(
+            (k) => typeof k === "string" && /[a-z]/i.test(k) && !/^U\+/.test(k)
+          );
+          const name = fromKw || codepointLabel(obj.emoji);
+          return Object.assign({}, obj, { name });
+        }
+      }
+
+      const ALL_EMOJIS = (function () {
+        try {
+          return generateEmojiSet();
+        } catch {
+          return [];
+        }
+      })();
+      const searchInput = document.getElementById("search");
+      const grid = document.getElementById("grid");
+      const scrollArea = document.getElementById("scrollArea");
+
+      // Incremental rendering for performance
+      let currentResults = ALL_EMOJIS;
+      let renderedCount = 0;
+      const CHUNK = 300;
+
+      function clearGrid() {
+        grid.innerHTML = "";
+        renderedCount = 0;
+      }
+
+      const emojiImageCache = new Map(); // emoji -> objectURL
+      const requestedEmojis = new Set();
+      const btnObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const el = entry.target;
+            const emoji = el.dataset.emoji;
+            if (!emoji) continue;
+            if (emojiImageCache.has(emoji)) {
+              applyEmojiImage(el, emojiImageCache.get(emoji));
+              btnObserver.unobserve(el);
+              continue;
+            }
+            if (isWindows && !requestedEmojis.has(emoji)) {
+              requestedEmojis.add(emoji);
+              parent.postMessage(
+                {
+                  pluginMessage: {
+                    type: "request-emoji-image",
+                    payload: { emoji },
+                  },
+                },
+                "*"
+              );
+            }
+          }
+        },
+        { root: scrollArea, threshold: 0.3 }
+      );
+
+      window.addEventListener("message", (ev) => {
+        const msg = ev.data && ev.data.pluginMessage;
+        if (!msg || msg.type !== "emoji-image") return;
+        const { emoji, bytes } = msg.payload || {};
+        if (!emoji || !bytes) return;
+        if (!emojiImageCache.has(emoji)) {
+          const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+          const url = URL.createObjectURL(blob);
+          emojiImageCache.set(emoji, url);
+        }
+        // Apply to any visible buttons with this emoji
+        const nodes = document.querySelectorAll(
+          `button.emoji-btn[data-emoji="${cssEscape(emoji)}"]`
+        );
+        nodes.forEach((n) => applyEmojiImage(n, emojiImageCache.get(emoji)));
+      });
+
+      function applyEmojiImage(buttonEl, url) {
+        if (!buttonEl || !url) return;
+        buttonEl.style.backgroundImage = `url(${url})`;
+        buttonEl.style.backgroundSize = "70% 70%";
+        buttonEl.style.backgroundRepeat = "no-repeat";
+        buttonEl.style.backgroundPosition = "center";
+        const span = buttonEl.querySelector("span");
+        if (span) span.textContent = "";
+      }
+
+      function cssEscape(str) {
+        // Minimal escape for attribute selectors
+        return String(str).replace(/"/g, '\\"');
+      }
+
+      function renderNextChunk() {
+        if (renderedCount >= currentResults.length) return;
+        const frag = document.createDocumentFragment();
+        const end = Math.min(renderedCount + CHUNK, currentResults.length);
+        for (let i = renderedCount; i < end; i++) {
+          const { emoji, name } = currentResults[i];
+          const btn = document.createElement("button");
+          btn.className = "emoji-btn";
+          btn.type = "button";
+          // Render emoji using a dedicated span to avoid layout reflows clearing text
+          const span = document.createElement("span");
+          span.textContent = emoji;
+          btn.appendChild(span);
+          btn.dataset.emoji = emoji;
+          btn.title = getTitle({ emoji, name });
+          btn.addEventListener("click", () => insertEmoji(emoji));
+          // Observe for viewport entry to apply PNG fallback on any OS if needed
+          btnObserver.observe(btn);
+          frag.appendChild(btn);
+        }
+        grid.appendChild(frag);
+        renderedCount = end;
+        updateScrollButtons();
+      }
+
+      function refreshGrid() {
+        clearGrid();
+        // Use rAF to keep UI responsive
+        requestAnimationFrame(renderNextChunk);
+      }
+
+      scrollArea.addEventListener("scroll", () => {
+        if (
+          scrollArea.scrollTop + scrollArea.clientHeight >=
+          scrollArea.scrollHeight - 40
+        ) {
+          renderNextChunk();
+        }
+        updateScrollButtons();
+      });
+
+      function filterEmojis(query) {
+        const q = query.trim().toLowerCase();
+        if (!q) return ALL_EMOJIS;
+        // Match against CLDR name, keywords, emoji itself, and codepoint label
+        return ALL_EMOJIS.filter((item) => {
+          if (item.name && item.name.toLowerCase().includes(q)) return true;
+          for (const kw of item.keywords) {
+            if ((kw + "").toLowerCase().includes(q)) return true;
+          }
+          return false;
+        });
+      }
+
+      const onInput = debounce(() => {
+        currentResults = filterEmojis(searchInput.value);
+        refreshGrid();
+      }, 120);
+
+      searchInput.addEventListener("input", onInput);
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const first = currentResults[0];
+          if (first) insertEmoji(first.emoji);
+        }
+      });
+
+      function insertEmoji(emoji) {
+        parent.postMessage(
+          { pluginMessage: { type: "insert-emoji", payload: { emoji } } },
+          "*"
+        );
+        addRecent(emoji);
+      }
+
+      function getTitle(item) {
+        const label = item.name || codepointLabel(item.emoji);
+        return `${label} ${item.emoji}`;
+      }
+
+      function codepointLabel(str) {
+        const cps = [];
+        for (const ch of Array.from(str)) {
+          const cp = ch.codePointAt(0);
+          if (cp != null) cps.push("U+" + cp.toString(16).toUpperCase());
+        }
+        return cps.join(" ");
+      }
+
+      // Recents section
+      const recentsEl = document.getElementById("recents");
+      const recentTitleEl = document.getElementById("recentTitle");
+      function addRecent(emoji) {
+        parent.postMessage(
+          { pluginMessage: { type: "add-recent", payload: { emoji } } },
+          "*"
+        );
+      }
+      function renderRecents(list = []) {
+        recentsEl.innerHTML = "";
+        recentTitleEl.style.display = list.length ? "" : "none";
+        for (const emoji of list.slice(0, 10)) {
+          const btn = document.createElement("button");
+          btn.className = "emoji-recent";
+          btn.dataset.emoji = emoji;
+          const span = document.createElement("span");
+          span.textContent = emoji;
+          btn.appendChild(span);
+          btn.title = getTitle({ emoji, name: undefined });
+          btn.addEventListener("click", () => insertEmoji(emoji));
+          btnObserver.observe(btn);
+          recentsEl.appendChild(btn);
+        }
+      }
+      // Request recents from main on load
+      parent.postMessage({ pluginMessage: { type: "get-recents" } }, "*");
+      window.addEventListener("message", (ev) => {
+        const msg = ev.data && ev.data.pluginMessage;
+        if (!msg) return;
+        if (msg.type === "recents") {
+          renderRecents(Array.isArray(msg.payload) ? msg.payload : []);
+        }
+      });
+
+      // Scroll arrow buttons
+      const btnDown = document.getElementById("btnDown");
+      const btnUp = document.getElementById("btnUp");
+      btnDown.addEventListener("click", () => {
+        scrollArea.scrollTo({
+          top: scrollArea.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+      btnUp.addEventListener("click", () => {
+        scrollArea.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      function updateScrollButtons() {
+        const canScroll =
+          scrollArea.scrollHeight > scrollArea.clientHeight + 20;
+        const atTop = scrollArea.scrollTop <= 10;
+        const atBottom =
+          scrollArea.scrollTop + scrollArea.clientHeight >=
+          scrollArea.scrollHeight - 10;
+        document.getElementById("btnDown").style.display =
+          canScroll && !atBottom ? "flex" : "none";
+        document.getElementById("btnUp").style.display =
+          canScroll && !atTop ? "flex" : "none";
+      }
+      updateScrollButtons();
+
+      // Initial render
+      refreshGrid();
+      searchInput.focus();
+    </script>
+  </body>
+</html>
